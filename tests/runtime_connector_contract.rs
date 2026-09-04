@@ -25,13 +25,13 @@ fn operation(program: &str, logical_id: &str, args: &[&str]) -> RuntimeOperation
 
 #[test]
 fn connector_call_hashes_connector_function_plan_and_operation_identity() {
-    let dry_run = operation("nodeplanctl", "nodeplan.apply_dry_run", &["apply", "--dry-run"]);
-    let plan = RuntimeOperationPlan::new("nodeplan.bootstrap").then(dry_run.clone());
-    let connector = RuntimeConnectorIdentity::new("nodeplan.local", "nodeplan");
+    let dry_run = operation("fleetctl", "fleet.apply_dry_run", &["apply", "--dry-run"]);
+    let plan = RuntimeOperationPlan::new("fleet.bootstrap").then(dry_run.clone());
+    let connector = RuntimeConnectorIdentity::new("fleet.local", "fleet");
 
     let first = RuntimeConnectorCall::for_operation(
         connector.clone(),
-        "nodeplan-control",
+        "fleet-control",
         "apply_dry_run",
         &plan,
         &dry_run,
@@ -41,7 +41,7 @@ fn connector_call_hashes_connector_function_plan_and_operation_identity() {
 
     let second = RuntimeConnectorCall::for_operation(
         connector.clone(),
-        "nodeplan-control",
+        "fleet-control",
         "apply_dry_run",
         &plan,
         &dry_run,
@@ -55,7 +55,7 @@ fn connector_call_hashes_connector_function_plan_and_operation_identity() {
 
     let changed_function = RuntimeConnectorCall::for_operation(
         connector,
-        "nodeplan-control",
+        "fleet-control",
         "apply_live",
         &plan,
         &dry_run,
@@ -68,13 +68,13 @@ fn connector_call_hashes_connector_function_plan_and_operation_identity() {
 
 #[test]
 fn connector_call_rejects_operation_that_is_not_in_the_verified_plan() {
-    let load = operation("nodeplanctl", "nodeplan.load", &["load", "plan.json"]);
-    let missing = operation("nodeplanctl", "nodeplan.apply_dry_run", &["apply", "--dry-run"]);
-    let plan = RuntimeOperationPlan::new("nodeplan.bootstrap").then(load);
+    let load = operation("fleetctl", "fleet.load", &["load", "plan.json"]);
+    let missing = operation("fleetctl", "fleet.apply_dry_run", &["apply", "--dry-run"]);
+    let plan = RuntimeOperationPlan::new("fleet.bootstrap").then(load);
 
     let error = RuntimeConnectorCall::for_operation(
-        RuntimeConnectorIdentity::new("nodeplan.local", "nodeplan"),
-        "nodeplan-control",
+        RuntimeConnectorIdentity::new("fleet.local", "fleet"),
+        "fleet-control",
         "apply_dry_run",
         &plan,
         &missing,
@@ -85,24 +85,24 @@ fn connector_call_rejects_operation_that_is_not_in_the_verified_plan() {
     assert_eq!(
         error,
         RuntimeConnectorError::OperationNotInPlan {
-            logical_id: "nodeplan.apply_dry_run".to_string(),
+            logical_id: "fleet.apply_dry_run".to_string(),
         }
     );
 }
 
 #[test]
 fn connector_receipt_links_function_exit_status_decision_and_next_transition() {
-    let load = operation("nodeplanctl", "nodeplan.load", &["load", "plan.json"]);
-    let dry_run = operation("nodeplanctl", "nodeplan.apply_dry_run", &["apply", "--dry-run"]);
-    let commit = operation("nodeplanctl", "nodeplan.commit_receipt", &["receipt", "commit"]);
-    let plan = RuntimeOperationPlan::new("nodeplan.bootstrap")
+    let load = operation("fleetctl", "fleet.load", &["load", "plan.json"]);
+    let dry_run = operation("fleetctl", "fleet.apply_dry_run", &["apply", "--dry-run"]);
+    let commit = operation("fleetctl", "fleet.commit_receipt", &["receipt", "commit"]);
+    let plan = RuntimeOperationPlan::new("fleet.bootstrap")
         .then(load)
         .then(dry_run.clone())
         .then(commit.clone());
 
     let call = RuntimeConnectorCall::for_operation(
-        RuntimeConnectorIdentity::new("nodeplan.local", "nodeplan"),
-        "nodeplan-control",
+        RuntimeConnectorIdentity::new("fleet.local", "fleet"),
+        "fleet-control",
         "apply_dry_run",
         &plan,
         &dry_run,
@@ -113,13 +113,13 @@ fn connector_receipt_links_function_exit_status_decision_and_next_transition() {
     let observation = RuntimeConnectorObservation::new(
         &call,
         RuntimeExitStatus::new(Some(0), true),
-        "nodeplanctl returned success",
+        "fleetctl returned success",
     );
 
     let decision = ExitStatusPolicy::new()
         .with_rule(ExitStatusRule::accepted_code(
             0,
-            ExitDisposition::JumpTo("nodeplan.commit_receipt".to_string()),
+            ExitDisposition::JumpTo("fleet.commit_receipt".to_string()),
             "dry-run accepted: commit receipt",
         ))
         .decide(observation.exit_status.clone());
@@ -136,28 +136,28 @@ fn connector_receipt_links_function_exit_status_decision_and_next_transition() {
     assert_eq!(receipt.call.digest(), call.digest());
     assert_eq!(receipt.observation.digest(), observation.digest());
     assert_eq!(receipt.operation_receipt.plan_digest, plan.digest());
-    assert_eq!(receipt.transition.next_logical_id, Some("nodeplan.commit_receipt".to_string()));
+    assert_eq!(receipt.transition.next_logical_id, Some("fleet.commit_receipt".to_string()));
     assert_eq!(receipt.transition.next_operation_digest, Some(commit.digest()));
     assert_eq!(receipt.digest(), receipt.clone().digest());
 }
 
 #[test]
-fn connector_contract_is_multipurpose_and_not_nodeplan_specific() {
-    let materialize = operation("denvctl", "denv.materialize_env", &["materialize", "dev"]);
-    let plan = RuntimeOperationPlan::new("denv.bootstrap").then(materialize.clone());
+fn connector_contract_is_multipurpose_and_not_fleet_specific() {
+    let materialize = operation("envdctl", "envd.materialize_env", &["materialize", "dev"]);
+    let plan = RuntimeOperationPlan::new("envd.bootstrap").then(materialize.clone());
 
     let call = RuntimeConnectorCall::for_operation(
-        RuntimeConnectorIdentity::new("denv.local", "denv"),
-        "denv-runtime",
+        RuntimeConnectorIdentity::new("envd.local", "envd"),
+        "envd-runtime",
         "materialize_env",
         &plan,
         &materialize,
         "prepare deterministic developer environment",
     )
-    .expect("denv should use the same connector contract");
+    .expect("envd should use the same connector contract");
 
-    assert_eq!(call.connector.connector_kind, "denv");
-    assert_eq!(call.service, "denv-runtime");
+    assert_eq!(call.connector.connector_kind, "envd");
+    assert_eq!(call.service, "envd-runtime");
     assert_eq!(call.function, "materialize_env");
     assert_eq!(call.plan_digest, plan.digest());
     assert_eq!(call.operation_digest, materialize.digest());

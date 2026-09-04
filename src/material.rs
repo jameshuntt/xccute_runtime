@@ -1,7 +1,7 @@
 //! Runtime material manifests for scripts, configs, binaries, and other files a
 //! verified operation plan depends on.
 //!
-//! This module is the seam for NodePlan/denv-style connectors that need to prove
+//! This module is the seam for supervisor-style connectors that need to prove
 //! a plan is not just a list of commands, but a list of commands backed by known
 //! local materials. Scripts and configs can be checked for existence and stable
 //! SHA-256 digests before a connector runs anything.
@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use crate::verified_operation::{RuntimeOperationPlan, StableDigest};
 
-/// Coarse material category. This is intentionally generic so NodePlan, denv,
+/// Coarse material category. This is intentionally generic so supervisors, daemons,
 /// local scripts, remote runners, and CI adapters can share one model.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeMaterialKind {

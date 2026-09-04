@@ -23,13 +23,13 @@ fn test_dir(name: &str) -> PathBuf {
 #[test]
 fn material_spec_hashes_existing_script_bytes_and_verifies_expected_digest() {
     let dir = test_dir("material_script_hash");
-    let script = dir.join("nodeplan_apply.sh");
-    let bytes = b"#!/usr/bin/env bash\necho nodeplan apply\n";
+    let script = dir.join("fleet_apply.sh");
+    let bytes = b"#!/usr/bin/env bash\necho fleet apply\n";
     fs::write(&script, bytes).expect("write script");
 
     let expected = StableDigest::sha256(bytes);
     let spec = RuntimeMaterialSpec::required_file(
-        "nodeplan.apply.script",
+        "fleet.apply.script",
         RuntimeMaterialKind::Script,
         &script,
         expected.clone(),
@@ -49,7 +49,7 @@ fn material_spec_detects_missing_required_script() {
     let dir = test_dir("material_missing_required");
     let script = dir.join("missing.sh");
     let spec = RuntimeMaterialSpec::required_file(
-        "nodeplan.missing.script",
+        "fleet.missing.script",
         RuntimeMaterialKind::Script,
         &script,
         StableDigest::sha256(b"expected bytes"),
@@ -66,12 +66,12 @@ fn material_spec_detects_missing_required_script() {
 #[test]
 fn material_manifest_reports_blocking_digest_mismatches() {
     let dir = test_dir("material_manifest_mismatch");
-    let script = dir.join("denv_bootstrap.sh");
+    let script = dir.join("envd_bootstrap.sh");
     fs::write(&script, b"actual bytes\n").expect("write script");
 
-    let manifest = RuntimeMaterialManifest::new("denv.bootstrap.materials")
+    let manifest = RuntimeMaterialManifest::new("envd.bootstrap.materials")
         .with_material(RuntimeMaterialSpec::required_file(
-            "denv.bootstrap.script",
+            "envd.bootstrap.script",
             RuntimeMaterialKind::Script,
             &script,
             StableDigest::sha256(b"expected different bytes\n"),
@@ -92,32 +92,32 @@ fn material_manifest_reports_blocking_digest_mismatches() {
 #[test]
 fn material_manifest_hashes_ordered_materials_deterministically() {
     let first = RuntimeMaterialSpec::required_unpinned(
-        "nodeplan.config",
+        "fleet.config",
         RuntimeMaterialKind::Config,
-        "nodeplan.toml",
+        "fleet.toml",
     );
     let second = RuntimeMaterialSpec::required_unpinned(
-        "nodeplan.script",
+        "fleet.script",
         RuntimeMaterialKind::Script,
         "apply.sh",
     );
 
-    let manifest_a = RuntimeMaterialManifest::new("nodeplan.materials")
+    let manifest_a = RuntimeMaterialManifest::new("fleet.materials")
         .with_material(first.clone())
         .with_material(second.clone());
-    let manifest_b = RuntimeMaterialManifest::new("nodeplan.materials")
+    let manifest_b = RuntimeMaterialManifest::new("fleet.materials")
         .with_material(first)
         .with_material(second);
-    let manifest_reordered = RuntimeMaterialManifest::new("nodeplan.materials")
+    let manifest_reordered = RuntimeMaterialManifest::new("fleet.materials")
         .with_material(RuntimeMaterialSpec::required_unpinned(
-            "nodeplan.script",
+            "fleet.script",
             RuntimeMaterialKind::Script,
             "apply.sh",
         ))
         .with_material(RuntimeMaterialSpec::required_unpinned(
-            "nodeplan.config",
+            "fleet.config",
             RuntimeMaterialKind::Config,
-            "nodeplan.toml",
+            "fleet.toml",
         ));
 
     assert_eq!(manifest_a.digest(), manifest_b.digest());
@@ -127,24 +127,24 @@ fn material_manifest_hashes_ordered_materials_deterministically() {
 #[test]
 fn plan_material_contract_links_plan_and_manifest_digests() {
     let operation = RuntimeOperation::new(
-        "nodeplan.apply_dry_run",
-        OsString::from("nodeplanctl"),
+        "fleet.apply_dry_run",
+        OsString::from("fleetctl"),
         vec![OsString::from("apply"), OsString::from("--dry-run")],
-        "nodeplanctl apply --dry-run",
+        "fleetctl apply --dry-run",
     );
-    let plan = RuntimeOperationPlan::new("nodeplan.bootstrap").then(operation);
-    let manifest = RuntimeMaterialManifest::new("nodeplan.bootstrap.materials")
+    let plan = RuntimeOperationPlan::new("fleet.bootstrap").then(operation);
+    let manifest = RuntimeMaterialManifest::new("fleet.bootstrap.materials")
         .with_material(RuntimeMaterialSpec::required_unpinned(
-            "nodeplan.bootstrap.config",
+            "fleet.bootstrap.config",
             RuntimeMaterialKind::Config,
-            "nodeplan.bootstrap.toml",
+            "fleet.bootstrap.toml",
         ));
 
     let contract = RuntimePlanMaterialContract::new(&plan, &manifest);
 
-    assert_eq!(contract.plan_id, "nodeplan.bootstrap");
+    assert_eq!(contract.plan_id, "fleet.bootstrap");
     assert_eq!(contract.plan_digest, plan.digest());
-    assert_eq!(contract.manifest_id, "nodeplan.bootstrap.materials");
+    assert_eq!(contract.manifest_id, "fleet.bootstrap.materials");
     assert_eq!(contract.manifest_digest, manifest.digest());
     assert!(contract.digest().as_str().len() == 64);
 }

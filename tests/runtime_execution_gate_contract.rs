@@ -42,21 +42,21 @@ fn test_dir(name: &str) -> PathBuf {
 fn verified_manifest(name: &str) -> (PathBuf, RuntimeMaterialManifest) {
     let dir = test_dir(name);
     let script = dir.join("apply.sh");
-    let config = dir.join("nodeplan.toml");
+    let config = dir.join("fleet.toml");
     let script_bytes = b"#!/usr/bin/env bash\necho apply\n";
-    let config_bytes = b"[nodeplan]\nmode = \"dry_run\"\n";
+    let config_bytes = b"[fleet]\nmode = \"dry_run\"\n";
     fs::write(&script, script_bytes).expect("write script");
     fs::write(&config, config_bytes).expect("write config");
 
-    let manifest = RuntimeMaterialManifest::new("nodeplan.bootstrap.materials")
+    let manifest = RuntimeMaterialManifest::new("fleet.bootstrap.materials")
         .with_material(RuntimeMaterialSpec::required_file(
-            "nodeplan.apply.script",
+            "fleet.apply.script",
             RuntimeMaterialKind::Script,
             &script,
             StableDigest::sha256(script_bytes),
         ))
         .with_material(RuntimeMaterialSpec::required_file(
-            "nodeplan.bootstrap.config",
+            "fleet.bootstrap.config",
             RuntimeMaterialKind::Config,
             &config,
             StableDigest::sha256(config_bytes),
@@ -68,8 +68,8 @@ fn verified_manifest(name: &str) -> (PathBuf, RuntimeMaterialManifest) {
 #[test]
 fn execution_gate_report_links_material_contract_and_report_digest() {
     let (dir, manifest) = verified_manifest("report_links");
-    let dry_run = operation("nodeplanctl", "nodeplan.apply_dry_run", &["apply", "--dry-run"]);
-    let plan = RuntimeOperationPlan::new("nodeplan.bootstrap").then(dry_run);
+    let dry_run = operation("fleetctl", "fleet.apply_dry_run", &["apply", "--dry-run"]);
+    let plan = RuntimeOperationPlan::new("fleet.bootstrap").then(dry_run);
     let contract = RuntimePlanMaterialContract::new(&plan, &manifest);
 
     let report = contract.verify_manifest(&manifest).expect("manifest should verify");
@@ -86,14 +86,14 @@ fn execution_gate_report_links_material_contract_and_report_digest() {
 #[test]
 fn execution_intent_requires_connector_call_and_material_contract_to_share_plan_digest() {
     let (dir, manifest) = verified_manifest("plan_digest_mismatch");
-    let dry_run = operation("nodeplanctl", "nodeplan.apply_dry_run", &["apply", "--dry-run"]);
-    let plan_for_call = RuntimeOperationPlan::new("nodeplan.bootstrap").then(dry_run.clone());
-    let different_plan = RuntimeOperationPlan::new("nodeplan.other").then(dry_run.clone());
+    let dry_run = operation("fleetctl", "fleet.apply_dry_run", &["apply", "--dry-run"]);
+    let plan_for_call = RuntimeOperationPlan::new("fleet.bootstrap").then(dry_run.clone());
+    let different_plan = RuntimeOperationPlan::new("fleet.other").then(dry_run.clone());
     let contract = RuntimePlanMaterialContract::new(&different_plan, &manifest);
 
     let call = RuntimeConnectorCall::for_operation(
-        RuntimeConnectorIdentity::new("nodeplan.local", "nodeplan"),
-        "nodeplan-control",
+        RuntimeConnectorIdentity::new("fleet.local", "fleet"),
+        "fleet-control",
         "apply_dry_run",
         &plan_for_call,
         &dry_run,
@@ -113,21 +113,21 @@ fn execution_intent_requires_connector_call_and_material_contract_to_share_plan_
 fn execution_intent_blocks_missing_required_material_before_connector_runs() {
     let dir = test_dir("missing_blocks");
     let missing_script = dir.join("missing_apply.sh");
-    let manifest = RuntimeMaterialManifest::new("nodeplan.bootstrap.materials")
+    let manifest = RuntimeMaterialManifest::new("fleet.bootstrap.materials")
         .with_material(RuntimeMaterialSpec::required_file(
-            "nodeplan.apply.script",
+            "fleet.apply.script",
             RuntimeMaterialKind::Script,
             &missing_script,
             StableDigest::sha256(b"expected script bytes"),
         ));
 
-    let dry_run = operation("nodeplanctl", "nodeplan.apply_dry_run", &["apply", "--dry-run"]);
-    let plan = RuntimeOperationPlan::new("nodeplan.bootstrap").then(dry_run.clone());
+    let dry_run = operation("fleetctl", "fleet.apply_dry_run", &["apply", "--dry-run"]);
+    let plan = RuntimeOperationPlan::new("fleet.bootstrap").then(dry_run.clone());
     let contract = RuntimePlanMaterialContract::new(&plan, &manifest);
 
     let call = RuntimeConnectorCall::for_operation(
-        RuntimeConnectorIdentity::new("nodeplan.local", "nodeplan"),
-        "nodeplan-control",
+        RuntimeConnectorIdentity::new("fleet.local", "fleet"),
+        "fleet-control",
         "apply_dry_run",
         &plan,
         &dry_run,
@@ -140,7 +140,7 @@ fn execution_intent_blocks_missing_required_material_before_connector_runs() {
 
     match error {
         RuntimeExecutionGateError::MaterialContractNotSatisfied { blocking_logical_ids, .. } => {
-            assert_eq!(blocking_logical_ids, vec!["nodeplan.apply.script".to_string()]);
+            assert_eq!(blocking_logical_ids, vec!["fleet.apply.script".to_string()]);
         }
         other => panic!("expected material contract error, got {other:?}"),
     }
@@ -151,16 +151,16 @@ fn execution_intent_blocks_missing_required_material_before_connector_runs() {
 #[test]
 fn execution_receipt_links_verified_material_gate_to_connector_receipt() {
     let (dir, manifest) = verified_manifest("receipt_links");
-    let dry_run = operation("nodeplanctl", "nodeplan.apply_dry_run", &["apply", "--dry-run"]);
-    let commit = operation("nodeplanctl", "nodeplan.commit_receipt", &["receipt", "commit"]);
-    let plan = RuntimeOperationPlan::new("nodeplan.bootstrap")
+    let dry_run = operation("fleetctl", "fleet.apply_dry_run", &["apply", "--dry-run"]);
+    let commit = operation("fleetctl", "fleet.commit_receipt", &["receipt", "commit"]);
+    let plan = RuntimeOperationPlan::new("fleet.bootstrap")
         .then(dry_run.clone())
         .then(commit.clone());
     let contract = RuntimePlanMaterialContract::new(&plan, &manifest);
 
     let call = RuntimeConnectorCall::for_operation(
-        RuntimeConnectorIdentity::new("nodeplan.local", "nodeplan"),
-        "nodeplan-control",
+        RuntimeConnectorIdentity::new("fleet.local", "fleet"),
+        "fleet-control",
         "apply_dry_run",
         &plan,
         &dry_run,
@@ -174,12 +174,12 @@ fn execution_receipt_links_verified_material_gate_to_connector_receipt() {
     let observation = RuntimeConnectorObservation::new(
         &call,
         RuntimeExitStatus::new(Some(0), true),
-        "nodeplanctl returned success",
+        "fleetctl returned success",
     );
     let decision = ExitStatusPolicy::new()
         .with_rule(ExitStatusRule::accepted_code(
             0,
-            ExitDisposition::JumpTo("nodeplan.commit_receipt".to_string()),
+            ExitDisposition::JumpTo("fleet.commit_receipt".to_string()),
             "dry-run accepted: commit receipt",
         ))
         .decide(observation.exit_status.clone());
@@ -198,7 +198,7 @@ fn execution_receipt_links_verified_material_gate_to_connector_receipt() {
     assert_eq!(execution_receipt.material_contract_digest, contract.digest());
     assert_eq!(execution_receipt.material_report_digest, intent.gate_report.material_report.digest());
     assert_eq!(execution_receipt.connector_receipt.digest(), connector_receipt.digest());
-    assert_eq!(execution_receipt.connector_receipt.transition.next_logical_id, Some("nodeplan.commit_receipt".to_string()));
+    assert_eq!(execution_receipt.connector_receipt.transition.next_logical_id, Some("fleet.commit_receipt".to_string()));
     assert_eq!(execution_receipt.connector_receipt.transition.next_operation_digest, Some(commit.digest()));
     assert_eq!(execution_receipt.digest(), execution_receipt.clone().digest());
 

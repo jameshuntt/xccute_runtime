@@ -1,7 +1,7 @@
 //! Runtime execution gates that combine verified plans, material manifests, and
 //! connector calls before anything is executed.
 //!
-//! This module is the pre-run contract seam for NodePlan, denv, local scripts,
+//! This module is the pre-run contract seam for supervisors, environment daemons, local scripts,
 //! CI, and future remote runners. It answers the question: is this connector
 //! allowed to run this known operation in this known plan with these known local
 //! materials?

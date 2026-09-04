@@ -21,16 +21,16 @@ fn build_verified_execution() -> (
     RuntimeConnectorExecutionReceipt,
 ) {
     let operation = RuntimeOperation::new(
-        "nodeplan.inspect_logs",
+        "fleet.inspect_logs",
         OsString::from("grep"),
-        vec![OsString::from("-n"), OsString::from("ERROR"), OsString::from("nodeplan.log")],
-        "grep -n ERROR nodeplan.log",
+        vec![OsString::from("-n"), OsString::from("ERROR"), OsString::from("fleet.log")],
+        "grep -n ERROR fleet.log",
     );
-    let plan = RuntimeOperationPlan::new("nodeplan.bootstrap").then(operation.clone());
+    let plan = RuntimeOperationPlan::new("fleet.bootstrap").then(operation.clone());
 
-    let script_bytes = b"grep -n ERROR nodeplan.log\n";
+    let script_bytes = b"grep -n ERROR fleet.log\n";
     let script_path = unique_temp_file("observation_script", script_bytes);
-    let manifest = RuntimeMaterialManifest::new("nodeplan.bootstrap.materials").with_material(
+    let manifest = RuntimeMaterialManifest::new("fleet.bootstrap.materials").with_material(
         RuntimeMaterialSpec::required_file(
             "scripts.inspect_logs",
             RuntimeMaterialKind::Script,
@@ -40,10 +40,10 @@ fn build_verified_execution() -> (
     );
     let material_contract = RuntimePlanMaterialContract::new(&plan, &manifest);
 
-    let connector = RuntimeConnectorIdentity::new("nodeplan.local", "nodeplan");
+    let connector = RuntimeConnectorIdentity::new("fleet.local", "fleet");
     let call = RuntimeConnectorCall::for_operation(
         connector,
-        "nodeplan-control",
+        "fleet-control",
         "inspect_logs",
         &plan,
         &operation,
@@ -85,7 +85,7 @@ fn observation_call_links_required_question_to_verified_execution_intent() {
         "obs.error_pattern",
         &operation.logical_id,
         RuntimeObservationKind::PatternSearch,
-        "Did grep find the ERROR pattern in nodeplan.log?",
+        "Did grep find the ERROR pattern in fleet.log?",
     )
     .with_context_budget_hint(128);
 
@@ -97,9 +97,9 @@ fn observation_call_links_required_question_to_verified_execution_intent() {
     .expect("observation call should link to intent");
 
     assert_eq!(call.requirement_logical_id, "obs.error_pattern");
-    assert_eq!(call.operation_logical_id, "nodeplan.inspect_logs");
+    assert_eq!(call.operation_logical_id, "fleet.inspect_logs");
     assert_eq!(call.operation_digest, intent.call.operation_digest);
-    assert_eq!(call.question, "Did grep find the ERROR pattern in nodeplan.log?");
+    assert_eq!(call.question, "Did grep find the ERROR pattern in fleet.log?");
 }
 
 #[test]
@@ -109,7 +109,7 @@ fn observation_fact_hashes_raw_output_but_keeps_compact_decision_context() {
         "obs.error_pattern",
         &operation.logical_id,
         RuntimeObservationKind::PatternSearch,
-        "Did grep find the ERROR pattern in nodeplan.log?",
+        "Did grep find the ERROR pattern in fleet.log?",
     );
     let call = RuntimeObservationCall::for_intent(&requirement, &intent, "inspect errors")
         .expect("observation call should form");
@@ -141,12 +141,12 @@ fn observation_fact_hashes_raw_output_but_keeps_compact_decision_context() {
 #[test]
 fn observation_receipt_requires_required_checks_before_decision_context_is_accepted() {
     let (plan, operation, _intent, execution_receipt) = build_verified_execution();
-    let observation_plan = RuntimeObservationPlan::new("nodeplan.bootstrap.observations", &plan)
+    let observation_plan = RuntimeObservationPlan::new("fleet.bootstrap.observations", &plan)
         .require(RuntimeObservationRequirement::required(
             "obs.error_pattern",
             &operation.logical_id,
             RuntimeObservationKind::PatternSearch,
-            "Did grep find the ERROR pattern in nodeplan.log?",
+            "Did grep find the ERROR pattern in fleet.log?",
         ));
     let empty_evidence = RuntimeObservationEvidenceSet::new(&plan);
 
@@ -170,9 +170,9 @@ fn observation_receipt_and_trace_link_evidence_back_to_verified_execution() {
         "obs.error_pattern",
         &operation.logical_id,
         RuntimeObservationKind::PatternSearch,
-        "Did grep find the ERROR pattern in nodeplan.log?",
+        "Did grep find the ERROR pattern in fleet.log?",
     );
-    let observation_plan = RuntimeObservationPlan::new("nodeplan.bootstrap.observations", &plan)
+    let observation_plan = RuntimeObservationPlan::new("fleet.bootstrap.observations", &plan)
         .require(requirement.clone());
     let call = RuntimeObservationCall::for_intent(&requirement, &intent, "inspect errors")
         .expect("observation call should form");
@@ -198,7 +198,7 @@ fn observation_receipt_and_trace_link_evidence_back_to_verified_execution() {
     assert_eq!(observation_receipt.evidence_set_digest, evidence.digest());
     assert!(evidence.compact_context().contains("grep found 2 ERROR lines"));
 
-    let trace = RuntimeExecutionTrace::new("nodeplan.bootstrap.trace")
+    let trace = RuntimeExecutionTrace::new("fleet.bootstrap.trace")
         .append(
             &execution_receipt,
             Some(&observation_receipt),
@@ -225,9 +225,9 @@ fn observation_requirement_rejects_mismatched_intent_operation() {
     let (_plan, _operation, intent, _execution_receipt) = build_verified_execution();
     let requirement = RuntimeObservationRequirement::required(
         "obs.process_exists",
-        "nodeplan.some_other_step",
+        "fleet.some_other_step",
         RuntimeObservationKind::ProcessSearch,
-        "Is the expected nodeplan process running?",
+        "Is the expected fleet process running?",
     );
 
     let result = RuntimeObservationCall::for_intent(&requirement, &intent, "check process");
@@ -237,7 +237,7 @@ fn observation_requirement_rejects_mismatched_intent_operation() {
         Err(RuntimeObservationError::RequirementOperationMismatch {
             requirement_operation_logical_id,
             intent_operation_logical_id,
-        }) if requirement_operation_logical_id == "nodeplan.some_other_step"
-            && intent_operation_logical_id == "nodeplan.inspect_logs"
+        }) if requirement_operation_logical_id == "fleet.some_other_step"
+            && intent_operation_logical_id == "fleet.inspect_logs"
     ));
 }

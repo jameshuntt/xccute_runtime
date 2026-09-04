@@ -19,7 +19,7 @@ use crate::verified_operation::{RuntimeOperationPlan, StableDigest};
 ///
 /// Examples include:
 /// - "Did grep find the ERROR pattern?"
-/// - "Did pgrep find a running nodeplan worker?"
+/// - "Did pgrep find a running fleet worker?"
 /// - "Did sed normalize the config field we need?"
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeDecisionQuestion {

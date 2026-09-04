@@ -22,24 +22,24 @@ fn build_verified_execution() -> (
     RuntimeConnectorExecutionReceipt,
 ) {
     let inspect_operation = RuntimeOperation::new(
-        "nodeplan.inspect_logs",
+        "fleet.inspect_logs",
         OsString::from("grep"),
-        vec![OsString::from("-n"), OsString::from("ERROR"), OsString::from("nodeplan.log")],
-        "grep -n ERROR nodeplan.log",
+        vec![OsString::from("-n"), OsString::from("ERROR"), OsString::from("fleet.log")],
+        "grep -n ERROR fleet.log",
     );
     let commit_operation = RuntimeOperation::new(
-        "nodeplan.commit_receipt",
-        OsString::from("nodeplanctl"),
+        "fleet.commit_receipt",
+        OsString::from("fleetctl"),
         vec![OsString::from("receipt"), OsString::from("commit")],
-        "nodeplanctl receipt commit",
+        "fleetctl receipt commit",
     );
-    let plan = RuntimeOperationPlan::new("nodeplan.bootstrap")
+    let plan = RuntimeOperationPlan::new("fleet.bootstrap")
         .then(inspect_operation.clone())
         .then(commit_operation.clone());
 
-    let script_bytes = b"grep -n ERROR nodeplan.log\n";
+    let script_bytes = b"grep -n ERROR fleet.log\n";
     let script_path = unique_temp_file("decision_guide_script", script_bytes);
-    let manifest = RuntimeMaterialManifest::new("nodeplan.bootstrap.materials").with_material(
+    let manifest = RuntimeMaterialManifest::new("fleet.bootstrap.materials").with_material(
         RuntimeMaterialSpec::required_file(
             "scripts.inspect_logs",
             RuntimeMaterialKind::Script,
@@ -49,10 +49,10 @@ fn build_verified_execution() -> (
     );
     let material_contract = RuntimePlanMaterialContract::new(&plan, &manifest);
 
-    let connector = RuntimeConnectorIdentity::new("nodeplan.local", "nodeplan");
+    let connector = RuntimeConnectorIdentity::new("fleet.local", "fleet");
     let call = RuntimeConnectorCall::for_operation(
         connector,
-        "nodeplan-control",
+        "fleet-control",
         "inspect_logs",
         &plan,
         &inspect_operation,
@@ -89,8 +89,8 @@ fn build_verified_execution() -> (
 
 fn build_guide(plan: &RuntimeOperationPlan, operation: &RuntimeOperation) -> RuntimeDecisionGuide {
     RuntimeDecisionGuide::new(
-        "nodeplan.bootstrap.guide",
-        "Decide whether nodeplan can safely move from log inspection to receipt commit.",
+        "fleet.bootstrap.guide",
+        "Decide whether fleet can safely move from log inspection to receipt commit.",
         plan,
     )
     .ask(
@@ -98,7 +98,7 @@ fn build_guide(plan: &RuntimeOperationPlan, operation: &RuntimeOperation) -> Run
             "q.error_pattern",
             &operation.logical_id,
             RuntimeObservationKind::PatternSearch,
-            "Did grep find the ERROR pattern in nodeplan.log?",
+            "Did grep find the ERROR pattern in fleet.log?",
             "Find blocking error evidence before deciding whether to continue.",
         )
         .with_context_budget_hint(256),
@@ -109,13 +109,13 @@ fn build_guide(plan: &RuntimeOperationPlan, operation: &RuntimeOperation) -> Run
 fn decision_guide_builds_observation_plan_from_required_questions() {
     let (plan, operation, _next, _intent, _execution_receipt) = build_verified_execution();
     let guide = build_guide(&plan, &operation);
-    let observation_plan = guide.to_observation_plan("nodeplan.bootstrap.observations");
+    let observation_plan = guide.to_observation_plan("fleet.bootstrap.observations");
 
-    assert_eq!(observation_plan.plan_id, "nodeplan.bootstrap");
+    assert_eq!(observation_plan.plan_id, "fleet.bootstrap");
     assert_eq!(observation_plan.plan_digest, plan.digest());
     assert_eq!(observation_plan.requirements.len(), 1);
     assert_eq!(observation_plan.requirements[0].logical_id, "q.error_pattern");
-    assert_eq!(observation_plan.requirements[0].question, "Did grep find the ERROR pattern in nodeplan.log?");
+    assert_eq!(observation_plan.requirements[0].question, "Did grep find the ERROR pattern in fleet.log?");
     assert_eq!(observation_plan.requirements[0].context_budget_hint, 256);
 }
 
@@ -123,7 +123,7 @@ fn decision_guide_builds_observation_plan_from_required_questions() {
 fn decision_context_requires_declared_questions_before_solution_path_is_accepted() {
     let (plan, operation, _next, _intent, _execution_receipt) = build_verified_execution();
     let guide = build_guide(&plan, &operation);
-    let observation_plan = guide.to_observation_plan("nodeplan.bootstrap.observations");
+    let observation_plan = guide.to_observation_plan("fleet.bootstrap.observations");
     let empty_evidence = RuntimeObservationEvidenceSet::new(&plan);
 
     let result = RuntimeGuidedDecisionContext::from_evidence(
@@ -143,7 +143,7 @@ fn decision_context_requires_declared_questions_before_solution_path_is_accepted
 fn guided_decision_context_keeps_only_declared_compact_evidence() {
     let (plan, operation, _next, intent, _execution_receipt) = build_verified_execution();
     let guide = build_guide(&plan, &operation);
-    let observation_plan = guide.to_observation_plan("nodeplan.bootstrap.observations");
+    let observation_plan = guide.to_observation_plan("fleet.bootstrap.observations");
     let requirement = guide.questions[0].to_observation_requirement();
     let call = RuntimeObservationCall::for_intent(&requirement, &intent, "inspect errors")
         .expect("observation call should form");
@@ -201,7 +201,7 @@ fn guided_decision_context_keeps_only_declared_compact_evidence() {
 fn acknowledged_decision_path_links_guided_context_to_next_plan_transition() {
     let (plan, operation, next_operation, intent, _execution_receipt) = build_verified_execution();
     let guide = build_guide(&plan, &operation);
-    let observation_plan = guide.to_observation_plan("nodeplan.bootstrap.observations");
+    let observation_plan = guide.to_observation_plan("fleet.bootstrap.observations");
     let requirement = guide.questions[0].to_observation_requirement();
     let call = RuntimeObservationCall::for_intent(
         &requirement,
@@ -242,7 +242,7 @@ fn acknowledged_decision_path_links_guided_context_to_next_plan_transition() {
         "operator accepted the guided evidence path",
     );
 
-    assert_eq!(path.current_logical_id, "nodeplan.inspect_logs");
+    assert_eq!(path.current_logical_id, "fleet.inspect_logs");
     assert_eq!(path.next_logical_id, Some(next_operation.logical_id));
     assert_eq!(path.context_digest, context.digest());
     assert_ne!(path.digest(), context.digest());

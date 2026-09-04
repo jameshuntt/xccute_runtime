@@ -39,7 +39,7 @@ impl std::fmt::Display for StableDigest {
 }
 
 /// A deterministic, argv-safe operation description that can be hashed before
-/// execution and referred to inside NodePlan/denv connectors later.
+/// execution and referred to inside connectors later.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeOperation {
     pub logical_id: String,

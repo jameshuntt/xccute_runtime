@@ -1,4 +1,4 @@
-//! Runtime connector contracts for external systems such as NodePlan, denv, or
+//! Runtime connector contracts for external systems such as a fleet supervisor, an environment daemon, or
 //! any other orchestrator that wants to feed verified operations into xccute.
 //!
 //! This module intentionally stays generic. A connector is not the command

@@ -1,7 +1,7 @@
 //! Plan transition helpers for deterministic operation chains.
 //!
 //! This module connects verified operation receipts to the next operation in a
-//! plan. It is the runtime seam NodePlan/denv-style connectors can use to say:
+//! plan. It is the runtime seam supervisor-style connectors can use to say:
 //! "this operation exited with this known status, for this known reason, so the
 //! next operation is this known plan step."
 
