@@ -22,6 +22,11 @@ The execution half of [xccute](https://crates.io/crates/xccute).
 Command builders live in [`xccute_commands`](https://crates.io/crates/xccute_commands);
 this crate does not know any particular program.
 
+## Releasing
+
+Bump `version` in Cargo.toml, add a dated `## <version> (YYYY-MM-DD)` entry to CHANGELOG.md, and push to
+`main`. CI (.github/workflows/ci.yml) runs the tests and clippy, then publishes that version to crates.io.
+
 ## License
 
 MIT OR Apache-2.0.
