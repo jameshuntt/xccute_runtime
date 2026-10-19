@@ -10,6 +10,11 @@ The execution half of [xccute](https://crates.io/crates/xccute).
 - `CommandSpec`: a command with an identity and a stable digest.
 - `runner::{CommandChainExecutor, CaptureMode, CommandError}`: run several
   commands in order, stop on error or not, dry run, capture output or stream it.
+- `ExitStatusPolicy`: ordered rules deciding what follows an exit status.
+  `ExitStatusPolicy::of(&command)` makes the rules from the statuses a command
+  names (`xccute_contract`'s `exit_statuses()`, which `#[exit_status(..)]` on a
+  derived leaf declares): an accepted one goes on, the rest stop, each with
+  its word as the reason.
 - The seams a supervising system uses before and after a run: connector
   calls and receipts, material manifests and verification, the execution gate,
   plan transitions, verified operations, and the decision guide.

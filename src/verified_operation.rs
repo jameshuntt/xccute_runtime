@@ -10,7 +10,7 @@ use std::ffi::OsString;
 use std::process::{ExitStatus, Output};
 
 use sha2::{Digest, Sha256};
-use xccute_contract::CommandPreview;
+use xccute_contract::{CommandPreview, CompositeShellCommand, ExitStatusWord};
 
 /// Stable SHA-256 digest rendered as lowercase hex.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -229,6 +229,24 @@ impl ExitStatusPolicy {
     pub fn with_rule(mut self, rule: ExitStatusRule) -> Self {
         self.rules.push(rule);
         self
+    }
+
+    /// Named statuses as rules, in order: an accepted one goes on, the rest
+    /// stop, each decided with its word as the reason.
+    pub fn named(statuses: &[ExitStatusWord]) -> Self {
+        statuses.iter().fold(Self::new(), |policy, status| {
+            policy.with_rule(if status.accepted {
+                ExitStatusRule::accepted_code(status.code, ExitDisposition::Continue, status.word)
+            } else {
+                ExitStatusRule::rejected_code(status.code, ExitDisposition::Stop, status.word)
+            })
+        })
+    }
+
+    /// The statuses a command names ([`CompositeShellCommand::exit_statuses`]),
+    /// as [`ExitStatusPolicy::named`] rules.
+    pub fn of<C: CompositeShellCommand + ?Sized>(command: &C) -> Self {
+        Self::named(command.exit_statuses())
     }
 
     pub fn decide(&self, status: RuntimeExitStatus) -> ExitStatusDecision {
